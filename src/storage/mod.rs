@@ -1,9 +1,8 @@
 pub mod memory;
 
-use tokio::sync::{mpsc, oneshot};
 use crate::error::{Error, Result};
 use crate::types::{Account, Address, Block, TransactionWithMeta};
-
+use tokio::sync::{mpsc, oneshot};
 
 
 pub type AddBlockResult = Result<()>;

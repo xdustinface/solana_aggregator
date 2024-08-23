@@ -1,7 +1,7 @@
 use crate::blocks::{BlockEvent, BlockStream};
+use crate::error::Result;
 use crate::storage::StorageInterface;
 use crate::types::Block;
-use crate::error::Result;
 
 pub struct Aggregator<Source>
 where

@@ -1,9 +1,9 @@
+use crate::error::{Error, Result};
+use crate::storage::Storage;
+use crate::types::{Account, Address, Block, TransactionWithMeta};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::storage::Storage;
-use crate::types::{Account, Address, Block, Hash, TransactionWithMeta};
-use crate::error::{Error, Result};
 
 #[derive(Debug)]
 struct TransactionIndex {

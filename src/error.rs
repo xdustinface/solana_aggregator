@@ -1,6 +1,6 @@
 use solana_client::client_error::ClientError;
-use thiserror::Error;
 use solana_sdk::clock::Slot;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -1,15 +1,14 @@
-use std::time::Duration;
-use futures::future::err;
+use crate::blocks::{BlockEvent, BlockStream};
+use crate::error::{Error, Result};
+use crate::types::Block;
 use solana_client::client_error::ClientErrorKind;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcBlockConfig;
 use solana_client::rpc_request::RpcError;
 use solana_sdk::clock::Slot;
-use solana_transaction_status::{UiConfirmedBlock, UiMessage, UiParsedInstruction, UiTransactionEncoding};
+use solana_transaction_status::{UiConfirmedBlock, UiTransactionEncoding};
+use std::time::Duration;
 use tokio::time::sleep;
-use crate::blocks::{BlockEvent, BlockStream};
-use crate::error::{Error, Result};
-use crate::types::Block;
 
 const BLOCK_NOT_AVAILABLE: i64 = -32004;
 const SLOT_SKIPPED: i64 = -32007;
