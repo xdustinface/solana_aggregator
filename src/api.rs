@@ -1,9 +1,9 @@
-use std::net::SocketAddr;
-use serde::{Deserialize};
 use crate::storage::StorageInterface;
+use crate::types::Address;
+use serde::Deserialize;
+use std::net::SocketAddr;
 use warp;
 use warp::Filter;
-use crate::types::Address;
 
 #[derive(Deserialize)]
 pub struct GetTransactions {

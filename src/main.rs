@@ -5,16 +5,16 @@ mod blocks;
 mod storage;
 mod types;
 
-use std::net::SocketAddr;
-use std::process::exit;
-use log::LevelFilter;
-use simple_logger::SimpleLogger;
-use tokio::sync::mpsc;
 use crate::aggregator::Aggregator;
 use crate::api::run_api;
 use crate::blocks::live::LiveStream;
 use crate::storage::memory::Memory;
 use crate::storage::{Storage, StorageInterface};
+use log::LevelFilter;
+use simple_logger::SimpleLogger;
+use std::net::SocketAddr;
+use std::process::exit;
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() {
