@@ -9,6 +9,7 @@ use solana_sdk::clock::Slot;
 use solana_transaction_status::{UiConfirmedBlock, UiTransactionEncoding};
 use std::time::Duration;
 use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 
 const BLOCK_NOT_AVAILABLE: i64 = -32004;
 const SLOT_SKIPPED: i64 = -32007;
@@ -42,21 +43,26 @@ pub struct LiveStream {
     rpc_client: RpcClient,
     current_slot: Slot,
     block_config: RpcBlockConfig,
+    token: CancellationToken,
 }
 
 impl LiveStream {
-    pub async fn create(url: String) -> Result<Self> {
+    pub async fn create_with_latest_slot(url: String, token: CancellationToken) -> Result<Self> {
         let rpc_client = RpcClient::new(url);
         let current_slot = rpc_client.get_slot().await.map_err(|error| {
             Error::RpcError(error)
         })?;
-        Ok(Self{rpc_client, current_slot, block_config: block_config()})
+        Ok(Self{rpc_client, current_slot, block_config: block_config(), token})
     }
 }
 
 impl BlockStream for LiveStream {
     async fn next(&mut self) -> BlockEvent {
         loop {
+            if self.token.is_cancelled() {
+                log::debug!("next() interrupted");
+                return BlockEvent::Failure(Error::Shutdown);
+            }
             match block_for_slot(self.current_slot, &self.rpc_client, self.block_config).await {
                 Ok(block) => {
                     let block = Block::from(block);

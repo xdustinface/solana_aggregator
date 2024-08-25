@@ -15,8 +15,10 @@ use simple_logger::SimpleLogger;
 use std::net::SocketAddr;
 use std::process::exit;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use clap::Parser;
 use crate::blocks::benchmark::Benchmark;
+use tokio::signal;
 
 #[derive(Parser)]
 #[command(version, about, long_about = "Solana data aggregator")]
@@ -43,11 +45,13 @@ async fn main() {
         .with_module_level("solana_aggregator", LevelFilter::Debug)
         .init()
         .expect("simple_logger init failed");
+    let token = CancellationToken::new();
+    let storage_token = token.clone();
     log::debug!("Create data storage");
     let (storage_tx, storage_rx) = mpsc::channel(20);
     let storage_interface = StorageInterface::new(storage_tx);
     let storage_task = tokio::spawn(async move {
-        Memory::default().run(storage_rx).await
+        Memory::default().run(storage_rx, storage_token).await
     });
     log::debug!("Create source stream + aggregator and start it!");
     let aggregator_task;
@@ -56,6 +60,7 @@ async fn main() {
         let mut aggregator = Aggregator::new(
             stream,
             storage_interface.clone(),
+            token.clone()
         );
         aggregator_task = tokio::spawn(async move {
             aggregator.run().await
@@ -63,6 +68,7 @@ async fn main() {
     } else {
         let stream = match LiveStream::create_with_latest_slot(
             args.source_path,
+            token.clone()
         ).await {
             Ok(stream) => {stream}
             Err(error) => {
@@ -73,25 +79,36 @@ async fn main() {
         let mut aggregator = Aggregator::new(
             stream,
             storage_interface.clone(),
+            token.clone()
         );
         aggregator_task = tokio::spawn(async move {
             aggregator.run().await
         });
     }
     log::debug!("Create and start API");
-    let api_task = tokio::spawn(run_api(args.api_socket, storage_interface.clone()));
+    let api_task = tokio::spawn(
+        run_api(
+            args.api_socket,
+            storage_interface.clone(),
+            token.clone()
+        )
+    );
 
-    // Await all tasks to run them concurrently
-    tokio::select! {
-        _ = storage_task => {
-            log::debug!("Storage task finished.");
-        }
-        _ = aggregator_task => {
-            log::debug!("Aggregator task finished.");
-        }
-        _ = api_task => {
-            log::debug!("API task finished.");
-        }
-    }
+    let shutdown_task = tokio::spawn(async move {
+        // Wait for a shutdown signal (SIGINT or SIGTERM).
+        signal::ctrl_c().await.unwrap();
+        log::debug!("Shutdown signal received!");
+        // Let the rest of the application know about the shutdown.
+        token.cancel();
+    });
+
+    // Wait for all tasks to be done!
+    tokio::join!(
+        storage_task,
+        aggregator_task,
+        api_task,
+        shutdown_task
+    );
+
     log::debug!("Done!");
 }

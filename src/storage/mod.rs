@@ -3,7 +3,7 @@ pub mod memory;
 use crate::error::{Error, Result};
 use crate::types::{Account, Address, Block, TransactionWithMeta};
 use tokio::sync::{mpsc, oneshot};
-
+use tokio_util::sync::CancellationToken;
 
 pub type AddBlockResult = Result<()>;
 pub type GetAccountsResult = Result<Vec<Account>>;
@@ -61,34 +61,54 @@ impl StorageInterface {
 }
 
 pub trait Storage {
-    async fn run(&mut self, mut receiver: mpsc::Receiver<StorageCommand>) -> Result<()> {
-        while let Some(command) = receiver.recv().await {
-            match command {
-                StorageCommand::AddBlock(block, sender) => {
-                    if let Err(_) = sender.send(self.add_block(block).await) {
-                        return Err(
-                            Error::ChannelFailure(
-                                "storage_add_block".to_string(),
-                                "send failure".to_string(),
-                            )
-                        )
+    async fn run(&mut self, mut receiver: mpsc::Receiver<StorageCommand>, token: CancellationToken) -> Result<()> {
+        loop {
+            tokio::select! {
+                command = receiver.recv() => {
+                    match command {
+                        Some(command) => {
+                            self.process_command(command).await?
+                        }
+                        None => {
+
+                        }
                     }
+                    continue
+                },
+                _ = token.cancelled() => {
+                    log::debug!("run() interrupted");
+                    break
                 }
-                StorageCommand::GetAccounts(sender) => {
-                    if let Err(_) = sender.send(self.get_accounts().await) {
-                        return Err(Error::ChannelFailure(
-                            "storage_get_accounts".to_string(),
-                            "send failure".to_string())
+            }
+        }
+        Ok(())
+    }
+    async fn process_command(&mut self, command: StorageCommand) -> Result<()> {
+        match command {
+            StorageCommand::AddBlock(block, sender) => {
+                if let Err(_) = sender.send(self.add_block(block).await) {
+                    return Err(
+                        Error::ChannelFailure(
+                            "storage_add_block".to_string(),
+                            "send failure".to_string(),
                         )
-                    }
+                    )
                 }
-                StorageCommand::GetTransactions(address, sender) => {
-                    if let Err(_) = sender.send(self.get_transactions(&address).await) {
-                        return Err(Error::ChannelFailure(
-                            "storage_get_transactions".to_string(),
-                            "send failure".to_string())
-                        )
-                    }
+            }
+            StorageCommand::GetAccounts(sender) => {
+                if let Err(_) = sender.send(self.get_accounts().await) {
+                    return Err(Error::ChannelFailure(
+                        "storage_get_accounts".to_string(),
+                        "send failure".to_string())
+                    )
+                }
+            }
+            StorageCommand::GetTransactions(address, sender) => {
+                if let Err(_) = sender.send(self.get_transactions(&address).await) {
+                    return Err(Error::ChannelFailure(
+                        "storage_get_transactions".to_string(),
+                        "send failure".to_string())
+                    )
                 }
             }
         }
