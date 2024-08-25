@@ -1,6 +1,6 @@
 use std::fs;
 use solana_transaction_status::UiConfirmedBlock;
-use crate::blocks::{BlockEvent, BlockStream};
+use crate::source::{SourceEvent, SourceStream};
 use crate::types::Block;
 use std::time::Instant;
 
@@ -23,8 +23,8 @@ impl Benchmark {
     }
 }
 
-impl BlockStream for Benchmark {
-    async fn next(&mut self) -> BlockEvent {
+impl SourceStream for Benchmark {
+    async fn next(&mut self) -> SourceEvent {
         if self.measure.is_none() {
             log::debug!("Benchmark start with {} blocks", self.blocks.len());
             self.measure = Some(Instant::now());
@@ -35,7 +35,7 @@ impl BlockStream for Benchmark {
                     "Benchmark done with {} blocks in {:?}", self.blocks.len(), measure.elapsed()
                 );
             }
-            return BlockEvent::EndOfStream;
+            return SourceEvent::EndOfStream;
         }
         let next_block = Block::from(self.blocks[self.current_block].clone());
         log::debug!(
@@ -44,6 +44,6 @@ impl BlockStream for Benchmark {
             next_block.transactions.len()
         );
         self.current_block += 1;
-        BlockEvent::Next(next_block)
+        SourceEvent::Next(next_block)
     }
 }

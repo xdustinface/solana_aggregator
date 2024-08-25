@@ -1,12 +1,12 @@
 use tokio_util::sync::CancellationToken;
-use crate::blocks::{BlockEvent, BlockStream};
+use crate::source::{SourceEvent, SourceStream};
 use crate::error::{Error, Result};
 use crate::storage::StorageInterface;
 use crate::types::Block;
 
 pub struct Aggregator<Source>
 where
-    Source: BlockStream,
+    Source: SourceStream,
 {
     source: Source,
     storage: StorageInterface,
@@ -15,7 +15,7 @@ where
 
 impl <Source> Aggregator<Source>
 where
-    Source: BlockStream,
+    Source: SourceStream,
 {
     pub fn new(source: Source, storage: StorageInterface, token: CancellationToken) -> Self {
         Self {source, storage, token}
@@ -29,7 +29,7 @@ where
             }
             let event = self.source.next().await;
             match event {
-                BlockEvent::Next(block) => {
+                SourceEvent::Next(block) => {
                     match self.process_block(block).await {
                         Ok(_) => {continue}
                         Err(error) => {
@@ -38,7 +38,7 @@ where
                         }
                     }
                 }
-                BlockEvent::Failure(error) => {
+                SourceEvent::Failure(error) => {
                     let mut level = log::Level::Error;
                     if let Error::Shutdown = &error {
                         level = log::Level::Debug;
@@ -46,7 +46,7 @@ where
                     log::log!(level, "Stream broken: {}", error);
                     return
                 }
-                BlockEvent::EndOfStream => {
+                SourceEvent::EndOfStream => {
                     log::info!("End of stream");
                     return
                 }

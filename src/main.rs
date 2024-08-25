@@ -1,13 +1,13 @@
 mod error;
 mod api;
 mod aggregator;
-mod blocks;
+mod source;
 mod storage;
 mod types;
 
 use crate::aggregator::Aggregator;
 use crate::api::run_api;
-use crate::blocks::live::LiveStream;
+use crate::source::live::LiveStream;
 use crate::storage::memory::Memory;
 use crate::storage::{Storage, StorageInterface};
 use log::LevelFilter;
@@ -17,7 +17,7 @@ use std::process::exit;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use clap::Parser;
-use crate::blocks::benchmark::Benchmark;
+use crate::source::benchmark::Benchmark;
 use tokio::signal;
 
 const DEFAULT_RPC_URL: &str = "https://api.devnet.solana.com";

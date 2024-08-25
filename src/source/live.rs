@@ -1,4 +1,4 @@
-use crate::blocks::{BlockEvent, BlockStream};
+use crate::source::{SourceEvent, SourceStream};
 use crate::error::{Error, Result};
 use crate::types::Block;
 use solana_client::client_error::ClientErrorKind;
@@ -56,12 +56,12 @@ impl LiveStream {
     }
 }
 
-impl BlockStream for LiveStream {
-    async fn next(&mut self) -> BlockEvent {
+impl SourceStream for LiveStream {
+    async fn next(&mut self) -> SourceEvent {
         loop {
             if self.token.is_cancelled() {
                 log::debug!("next() interrupted");
-                return BlockEvent::Failure(Error::Shutdown);
+                return SourceEvent::Failure(Error::Shutdown);
             }
             match block_for_slot(self.current_slot, &self.rpc_client, self.block_config).await {
                 Ok(block) => {
@@ -72,7 +72,7 @@ impl BlockStream for LiveStream {
                         block.height,
                         block.transactions.len()
                     );
-                    return BlockEvent::Next(block)
+                    return SourceEvent::Next(block)
                 }
                 Err(error) => {
                     match error {
@@ -87,7 +87,7 @@ impl BlockStream for LiveStream {
                             continue
                         }
                         _ => {
-                            return BlockEvent::Failure(error)
+                            return SourceEvent::Failure(error)
                         }
                     }
                 }

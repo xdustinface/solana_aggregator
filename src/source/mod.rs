@@ -5,14 +5,14 @@ use solana_transaction_status::{EncodedTransaction, EncodedTransactionWithStatus
 pub mod benchmark;
 pub mod live;
 
-pub enum BlockEvent {
+pub enum SourceEvent {
     Next(Block),
     Failure(Error),
     EndOfStream,
 }
 
-pub trait BlockStream {
-    fn next(&mut self) -> impl std::future::Future<Output = BlockEvent> + Send;
+pub trait SourceStream {
+    fn next(&mut self) -> impl std::future::Future<Output = SourceEvent> + Send;
 }
 
 fn parse_instruction(instruction: &UiInstruction) -> Option<Transaction> {
