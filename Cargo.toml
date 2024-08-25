@@ -14,6 +14,7 @@ name = "solana_aggregator"
 path = "src/lib.rs"
 
 [dependencies]
+clap = { version = "4.5.16", features = ["derive"] }
 log = "0.4.22"
 simple_logger = "5.0.0"
 serde = "1.0.208"
