@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::types::{Block, Transaction};
 use solana_transaction_status::{EncodedTransaction, EncodedTransactionWithStatusMeta, UiConfirmedBlock, UiInstruction, UiMessage, UiParsedInstruction};
 
+pub mod benchmark;
 pub mod live;
 
 fn parse_instruction(instruction: &UiInstruction) -> Option<Transaction> {
