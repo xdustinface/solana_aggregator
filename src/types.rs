@@ -6,6 +6,7 @@ pub type Address = String;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Transaction {
+    pub hash: Hash,
     pub sender: Address,
     pub receiver: Address,
     pub amount: u64,

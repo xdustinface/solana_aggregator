@@ -1,4 +1,5 @@
 pub mod memory;
+mod sqlite;
 
 use crate::error::{Error, Result};
 use crate::types::{Account, Address, Block, TransactionWithMeta};

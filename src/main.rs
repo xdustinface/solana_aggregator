@@ -29,6 +29,8 @@ struct Args {
     source_path: String,
     #[arg(short, long, default_value_t = false)]
     benchmark: bool,
+    #[arg(short, long, default_value_t = false)]
+    db: bool,
 }
 
 #[tokio::main]
