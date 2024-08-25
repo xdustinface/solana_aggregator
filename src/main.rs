@@ -15,17 +15,31 @@ use simple_logger::SimpleLogger;
 use std::net::SocketAddr;
 use std::process::exit;
 use tokio::sync::mpsc;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(version, about, long_about = "Solana data aggregator")]
+struct Args {
+    /// Specify the socket address and port where the application should listen to for API requests.
+    #[arg(short, long, default_value = "127.0.0.1:8080")]
+    api_socket: SocketAddr,
+    /// The output file to write results to
+    /// Specify the url the RPC client or the local file path from which the application should
+    /// load the RPC data from if the benchmark mode is enabled.
+    #[arg(short='p', long, default_value = "https://api.devnet.solana.com")]
+    source_path: String,
+}
 
 #[tokio::main]
 async fn main() {
+    let args = Args::parse();
     SimpleLogger::new()
         .with_level(LevelFilter::Error)
         .with_module_level("solana_aggregator", LevelFilter::Debug)
         .init()
         .expect("simple_logger init failed");
     log::debug!("Create source stream");
-    let rpc_url = "https://api.devnet.solana.com".to_string();
-    let stream = match LiveStream::create(rpc_url).await {
+    let stream = match LiveStream::create(args.source_path).await {
         Ok(stream) => {stream}
         Err(error) => {
             log::error!("Failed to create stream {}", error);
@@ -44,8 +58,7 @@ async fn main() {
         aggregator.run().await
     });
     log::debug!("Create and start API");
-    let socket_address = SocketAddr::new("127.0.0.1".parse().unwrap(), 8080);
-    let api_task = tokio::spawn(run_api(socket_address, storage_interface.clone()));
+    let api_task = tokio::spawn(run_api(args.api_socket, storage_interface.clone()));
 
     // Await all tasks to run them concurrently
     tokio::select! {
