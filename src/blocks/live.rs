@@ -13,6 +13,31 @@ use tokio::time::sleep;
 const BLOCK_NOT_AVAILABLE: i64 = -32004;
 const SLOT_SKIPPED: i64 = -32007;
 
+pub fn block_config() -> RpcBlockConfig {
+    RpcBlockConfig {
+        max_supported_transaction_version: Some(0),
+        encoding: Some(UiTransactionEncoding::JsonParsed),
+        ..RpcBlockConfig::default()
+    }
+}
+
+pub async fn block_for_slot(slot: Slot, rpc_client: &RpcClient, block_config: RpcBlockConfig) -> Result<UiConfirmedBlock> {
+    rpc_client.get_block_with_config(slot, block_config).await
+        .map_err(|error| {
+            if let ClientErrorKind::RpcError(rpc_error) = error.kind() {
+                if let RpcError::RpcResponseError { code, .. } = rpc_error {
+                    if code == &BLOCK_NOT_AVAILABLE {
+                        return Error::SlotNotAvailable(slot)
+                    }
+                    if code == &SLOT_SKIPPED {
+                        return Error::SlotSkippedOrMissing(slot)
+                    }
+                }
+            }
+            Error::RpcError(error)
+        })
+}
+
 pub struct LiveStream {
     rpc_client: RpcClient,
     current_slot: Slot,
@@ -25,37 +50,14 @@ impl LiveStream {
         let current_slot = rpc_client.get_slot().await.map_err(|error| {
             Error::RpcError(error)
         })?;
-        let block_config = RpcBlockConfig {
-            max_supported_transaction_version: Some(0),
-            encoding: Some(UiTransactionEncoding::JsonParsed),
-            ..RpcBlockConfig::default()
-        };
-        Ok(Self{rpc_client, current_slot, block_config})
-    }
-
-    async fn block_for_current_slot(&self) -> Result<UiConfirmedBlock> {
-        self.rpc_client.get_block_with_config(self.current_slot, self.block_config)
-            .await
-            .map_err(|error| {
-                if let ClientErrorKind::RpcError(rpc_error) = error.kind() {
-                    if let RpcError::RpcResponseError { code, .. } = rpc_error {
-                        if code == &BLOCK_NOT_AVAILABLE {
-                            return Error::SlotNotAvailable(self.current_slot)
-                        }
-                        if code == &SLOT_SKIPPED {
-                            return Error::SlotSkippedOrMissing(self.current_slot)
-                        }
-                    }
-                }
-                Error::RpcError(error)
-            })
+        Ok(Self{rpc_client, current_slot, block_config: block_config()})
     }
 }
 
 impl BlockStream for LiveStream {
     async fn next(&mut self) -> BlockEvent {
         loop {
-            match self.block_for_current_slot().await {
+            match block_for_slot(self.current_slot, &self.rpc_client, self.block_config).await {
                 Ok(block) => {
                     let block = Block::from(block);
                     self.current_slot += 1;

@@ -9,6 +9,10 @@ readme = "README.md"
 description = "Minimal and simplified data aggregator for Solana blockchain data"
 keywords = ["crypto"]
 
+[lib]
+name = "solana_aggregator"
+path = "src/lib.rs"
+
 [dependencies]
 log = "0.4.22"
 simple_logger = "5.0.0"
