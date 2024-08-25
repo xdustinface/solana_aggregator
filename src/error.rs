@@ -16,4 +16,6 @@ pub enum Error {
     SlotSkippedOrMissing(Slot),
     #[error("Invalid block with height {0} - Reason: {1}")]
     InvalidBlock(u64, String),
+    #[error("Application shutdown triggered")]
+    Shutdown,
 }

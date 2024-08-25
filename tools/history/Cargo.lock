@@ -4035,6 +4035,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.23.1",
+ "tokio-util",
  "tungstenite 0.23.0",
  "warp",
 ]

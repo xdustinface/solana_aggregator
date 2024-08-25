@@ -2,6 +2,7 @@ use crate::storage::StorageInterface;
 use crate::types::Address;
 use serde::Deserialize;
 use std::net::SocketAddr;
+use tokio_util::sync::CancellationToken;
 use warp;
 use warp::Filter;
 
@@ -37,7 +38,7 @@ async fn get_accounts(
     }
 }
 
-pub async fn run_api(address: SocketAddr, storage_interface: StorageInterface) {
+pub async fn run_api(address: SocketAddr, storage_interface: StorageInterface, token: CancellationToken) {
     let get_transactions_interface = storage_interface.clone();
     let get_transactions_route = warp::path!("transactions")
         .and(warp::query::<GetTransactions>())
@@ -48,5 +49,8 @@ pub async fn run_api(address: SocketAddr, storage_interface: StorageInterface) {
         .and(warp::any().map(move || get_accounts_interface.clone()))
         .and_then(get_accounts);
     let routes = get_accounts_route.or(get_transactions_route);
-    warp::serve(routes).run(address).await;
+    warp::serve(routes).bind_with_graceful_shutdown(address, async move {
+        token.cancelled().await;
+        log::debug!("API shutdown");
+    }).1.await;
 }
