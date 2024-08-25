@@ -20,26 +20,30 @@ use clap::Parser;
 use crate::blocks::benchmark::Benchmark;
 use tokio::signal;
 
+const DEFAULT_RPC_URL: &str = "https://api.devnet.solana.com";
+
 #[derive(Parser)]
 #[command(version, about, long_about = "Solana data aggregator")]
 struct Args {
-    /// Specify the socket address and port where the application should listen to for API requests.
+    /// The socket address and port where the application should listen to for API requests.
     #[arg(short, long, default_value = "127.0.0.1:8080")]
     api_socket: SocketAddr,
-    /// The output file to write results to
-    /// Specify the url the RPC client or the local file path from which the application should
-    /// load the RPC data from if the benchmark mode is enabled.
-    #[arg(short='p', long, default_value = "https://api.devnet.solana.com")]
-    source_path: String,
-    /// Enabled the benchmark mode which allows to provide locally stored RPC JSON file via the
-    /// --source-path argument.
-    #[arg(short, long, default_value_t = false)]
-    benchmark: bool,
+    /// The url from where the RPC client will download the block data.
+    #[arg(short, long, default_value = None)]
+    rpc_url: Option<String>,
+    /// The path to a local JSON file containing a list of block objects returned by the get_block
+    /// RPC interface call of the official Solana RPC interface.
+    #[arg(short, long, default_value = None)]
+    file_path: Option<String>,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+    if args.rpc_url.is_some() && args.file_path.is_some() {
+        eprintln!("You can only use one of: --rpc-url / --file-path");
+        exit(1);
+    }
     SimpleLogger::new()
         .with_level(LevelFilter::Error)
         .with_module_level("solana_aggregator", LevelFilter::Debug)
@@ -55,8 +59,8 @@ async fn main() {
     });
     log::debug!("Create source stream + aggregator and start it!");
     let aggregator_task;
-    if args.benchmark {
-        let stream = Benchmark::new(args.source_path);
+    if let Some(file_path) = args.file_path {
+        let stream = Benchmark::new(file_path);
         let mut aggregator = Aggregator::new(
             stream,
             storage_interface.clone(),
@@ -66,8 +70,13 @@ async fn main() {
             aggregator.run().await
         });
     } else {
+        let url = if let Some(rpc_url) = args.rpc_url {
+            rpc_url
+        } else {
+            DEFAULT_RPC_URL.to_string()
+        };
         let stream = match LiveStream::create_with_latest_slot(
-            args.source_path,
+            url,
             token.clone()
         ).await {
             Ok(stream) => {stream}
