@@ -66,7 +66,7 @@ impl Storage for Memory {
 
     async fn get_accounts(&self) -> Result<Vec<Account>> {
         let data = self.data.lock().await;
-        let mut accounts = Vec::new();
+        let mut accounts = Vec::with_capacity(data.accounts.len());
         for (address, balance) in data.accounts.iter() {
             accounts.push(
                 Account {
@@ -82,6 +82,7 @@ impl Storage for Memory {
         let data = self.data.lock().await;
         let mut transactions = Vec::new();
         if let Some(transaction_index) = data.transaction_index.get(address) {
+            transactions.reserve(transaction_index.len());
             for index in transaction_index {
                 let block = data.blocks.get(&index.block_height).unwrap();
                 let transaction = block.transactions.get(index.index).unwrap();
