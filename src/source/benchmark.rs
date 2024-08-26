@@ -47,3 +47,30 @@ impl SourceStream for Benchmark {
         SourceEvent::Next(next_block)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+    use super::*;
+
+    #[tokio::test]
+    async fn benchmark() {
+        let mut benchmark = Benchmark::new("benchmark.json".to_string());
+        for height in 288381105..288381120 {
+            let event = benchmark.next().await;
+            match event {
+                SourceEvent::Next(block) => {
+                    assert_eq!(block.height, height);
+                }
+                SourceEvent::Failure(error) => {
+                    assert!(false, "unexpected failure {}", error)
+                }
+                SourceEvent::EndOfStream => {
+                    assert!(height >= 288381116)
+                }
+            }
+        }
+        let elapsed = benchmark.measure.unwrap().elapsed();
+        assert!(elapsed < Duration::from_millis(50), "duration {:?}", elapsed);
+    }
+}
