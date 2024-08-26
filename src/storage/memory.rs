@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct TransactionIndex {
     pub block_height: u64,
     pub index: usize,
@@ -40,18 +40,20 @@ impl Storage for Memory {
         data.last_block = block_height;
         for (index, transaction) in block.transactions.iter().enumerate() {
             // Update transaction index
+            let tx_index = TransactionIndex {
+                block_height,
+                index,
+            };
             let sender_index = data.transaction_index
                 .entry(transaction.sender.clone()).or_default();
-            sender_index.push(TransactionIndex {
-                block_height,
-                index,
-            });
+            if !sender_index.contains(&tx_index) {
+                sender_index.push(tx_index.clone());
+            }
             let receiver_index = data.transaction_index
                 .entry(transaction.receiver.clone()).or_default();
-            receiver_index.push(TransactionIndex {
-                block_height,
-                index,
-            });
+            if !receiver_index.contains(&tx_index) {
+                receiver_index.push(tx_index.clone());
+            }
             // Update accounts
             let mut receiver_account = data.accounts
                 .entry(transaction.receiver.clone()).or_default();
