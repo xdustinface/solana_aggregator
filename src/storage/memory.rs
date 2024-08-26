@@ -99,3 +99,146 @@ impl Storage for Memory {
         Ok(transactions)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::Transaction;
+    use super::*;
+
+    async fn assert_accounts(memory: &Memory, expected_accounts: &Vec<Account>) {
+        let accounts = memory.get_accounts().await.unwrap();
+        assert_eq!(accounts.len(), expected_accounts.len());
+        for account in expected_accounts.clone() {
+            assert!(accounts.contains(&account));
+        }
+    }
+    async fn assert_transactions(
+        memory: &Memory,
+        address: &Address,
+        expected_transactions: Vec<TransactionWithMeta>
+    ) {
+        let transactions = memory.get_transactions(&address).await.unwrap();
+        assert_eq!(transactions.len(), expected_transactions.len());
+        for transaction in expected_transactions.clone() {
+            assert!(transactions.contains(&transaction));
+        }
+    }
+
+    fn get_block(height: u64, transactions: Vec<Transaction>) -> Block {
+        Block {
+            height,
+            hash: height.to_string(),
+            timestamp: height as i64,
+            transactions,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_add_and_fetch_data() {
+        let mut memory = Memory::default();
+
+        assert_eq!(memory.get_accounts().await.unwrap().len(), 0);
+
+        let mut account_0 = Account {
+            address: "0".to_string(),
+            balance: 0,
+        };
+        let mut account_1 = Account {
+            address: "1".to_string(),
+            balance: 0,
+        };
+
+        let tx_0 = TransactionWithMeta {
+            data: Transaction {
+                sender: account_0.address.clone(),
+                receiver: account_1.address.clone(),
+                amount: 1,
+            },
+            timestamp: 0,
+        };
+        let tx_1 = TransactionWithMeta {
+            data: Transaction {
+                sender: account_1.address.clone(),
+                receiver: account_0.address.clone(),
+                amount: 2,
+            },
+            timestamp: 1,
+        };
+        let tx_2 = TransactionWithMeta {
+            data: Transaction {
+                sender: account_1.address.clone(),
+                receiver: account_1.address.clone(),
+                amount: 5,
+            },
+            timestamp: 2,
+        };
+        let tx_3 = TransactionWithMeta {
+            data: Transaction {
+                sender: account_1.address.clone(),
+                receiver: account_0.address.clone(),
+                amount: 10,
+            },
+            timestamp: 2,
+        };
+
+        let block_0 = get_block(0, Vec::from([tx_0.data.clone()]));
+        let block_1 = get_block(1, Vec::from([tx_1.data.clone()]));
+        let block_2 = get_block(2, Vec::from([tx_2.data.clone(), tx_3.data.clone()]));
+
+        let mut expected_accounts = Vec::from([account_0, account_1]);
+
+        assert!(memory.add_block(block_0).await.is_ok());
+        expected_accounts[0].balance = -1;
+        expected_accounts[1].balance = 1;
+        assert_accounts(&memory, &expected_accounts).await;
+        assert_transactions(&memory, &expected_accounts[0].address, Vec::from([tx_0.clone()])).await;
+        assert_transactions(&memory, &expected_accounts[1].address, Vec::from([tx_0.clone()])).await;
+
+        assert!(memory.add_block(block_1).await.is_ok());
+        expected_accounts[0].balance = 1;
+        expected_accounts[1].balance = -1;
+        assert_accounts(&memory, &expected_accounts).await;
+        assert_transactions(&memory, &expected_accounts[0].address, Vec::from([tx_0.clone(), tx_1.clone()])).await;
+        assert_transactions(&memory, &expected_accounts[1].address, Vec::from([tx_0.clone(), tx_1.clone()])).await;
+
+        assert!(memory.add_block(block_2).await.is_ok());
+        expected_accounts[0].balance = 11;
+        expected_accounts[1].balance = -11;
+        assert_accounts(&memory, &expected_accounts).await;
+        assert_transactions(
+            &memory,
+            &expected_accounts[0].address,
+            Vec::from([tx_0.clone(),tx_1.clone(), tx_3.clone()])
+        ).await;
+        assert_transactions(
+            &memory,
+            &expected_accounts[1].address,
+            Vec::from([tx_0.clone(), tx_1.clone(), tx_2.clone(), tx_3.clone()])
+        ).await;
+    }
+    async fn test_add_block_failures() {
+        let mut memory = Memory::default();
+
+        let block_0 = get_block(0, Vec::new());
+        let block_1 = get_block(1, Vec::new());
+        let block_2 = get_block(2, Vec::new());
+
+        assert!(memory.add_block(block_1.clone()).await.is_ok());
+        // Adding the block again should lead to failure
+        let expected_error = Error::InvalidBlock(1, "Already exists in storage".to_string());
+        match memory.add_block(block_1).await {
+            Err(Error::InvalidBlock(height, error)) => {
+                assert_eq!(height, 1);
+                assert_eq!(error, "Already exists in storage");
+            }
+            _ => {panic!("existing block test failed")}
+        }
+        match memory.add_block(block_0).await {
+            Err(Error::InvalidBlock(height, error)) => {
+                assert_eq!(height, 0);
+                assert_eq!(error, "Block height must be ascending. last_block: 1");
+            }
+            _ => {panic!("lower block height test failed")}
+        }
+    }
+}
