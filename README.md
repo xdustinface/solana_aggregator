@@ -4,7 +4,7 @@ This is a simple command-line application written in Rust to fetch and process S
 RPC interface to store it either in a temporary or permanent storage from where the data gets served via the
 application's own REST API server.
 
-It's minimal and was just developed as part of an interview process to demonstrate my
+It's minimal and was developed as part of an interview process (based the task formulation in [TASK.md](https://github.com/xdustinface/solana_aggregator/tree/main/TASK.md)) to demonstrate my
 programing skills and style.
 
 ## Considerations
