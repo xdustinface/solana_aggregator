@@ -19,9 +19,9 @@ Few things I want to mention here about the application:
 - The transaction parser only considers standard SOL instruction as transaction. It also splits up a transaction into
   multiple transactions based on the instructions provided in the transaction without having a identifier for the
   transactions at all so they are just indexed via the block height.
-- The `Account` data processed and stored are completely off since it doesn't consider the initial start
+- The `Account` data processed and stored are completely off since it doesn't consider the initial state
 when the first transaction gets applied. To fix this there would need to be some initialization phase when a new account
-gets added.
+gets added to fetch the balance at the starting height.
 - The processing of the blocks might still have some edge cases where slots wouldn't contain a block for some reason. I
   found the slots sometimes being skipped (RPC error -32007) or there is no block for a slot (RPC error -32004) and since
   im not yet familiar with the Solana protocol i can't tell what else might come up here.
@@ -31,8 +31,8 @@ examples in [src/storage/memory.rs](https://github.com/xdustinface/solana_aggreg
 
 ## Design
 
-It's an asynchronous application based on the [tokio runtime](https://github.com/tokio-rs/tokio) runtime
-and separated into four long-running async tasks:
+It's an asynchronous application based on the [tokio runtime](https://github.com/tokio-rs/tokio),
+and it's separated into four long-running async tasks:
 
 #### 1. Aggregator
 
